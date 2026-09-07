@@ -3,7 +3,7 @@ import {
   BookOpen,
   Video,
   FileDown,
-  FileCheck,
+  Radio,
   UploadCloud,
   GraduationCap,
   UserCheck,
@@ -12,6 +12,7 @@ import {
   LogOut,
   X,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -24,14 +25,19 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { name: "الصفحة الرئيسية", icon: LayoutDashboard, path: "/" },
-  { name: "الكورسات المشترك بها", icon: BookOpen, path: "/courses", badge: "جديد" },
+  { name: "الكورسات المشترك بها", icon: BookOpen, path: "/courses" },
   { name: "مشاهدة الفيديوهات", icon: Video, path: "/videos" },
   { name: "تحميل الملفات والمذكرات", icon: FileDown, path: "/files" },
-  { name: "حل الاختبارات", icon: FileCheck, path: "/exams" },
+  { name: "لايف مباشر", icon: Radio, path: "/live", badge: "مباشر" },
   { name: "تسليم الواجبات", icon: UploadCloud, path: "/assignments" },
   { name: "متابعة الدرجات", icon: GraduationCap, path: "/grades" },
-  { name: "متابعة الحضور", icon: UserCheck, path: "/attendance" },
-  { name: "الإشعارات", icon: Bell, path: "/notifications", badge: "3" },
+  {
+    name: "الاشتراكات والدفع (vodafone/insta)",
+    icon: CreditCard,
+    path: "/subscriptions",
+  },
+
+  { name: "الإشعارات", icon: Bell, path: "/notifications" },
   { name: "الملف الشخصي", icon: User, path: "/profile" },
 ];
 
@@ -71,7 +77,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="h-full flex flex-col justify-between p-5">
           {/* الجزء العلوي والقائمة */}
           <div className="space-y-6 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200">
-            
             {/* بطاقة التعريف بالمنصة / الطالب */}
             <div className="flex justify-between items-center pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
@@ -132,7 +137,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full relative z-10 shrink-0 ${
                           isActive
                             ? "bg-white text-blue-600"
-                            : "bg-blue-100 text-blue-600"
+                            : item.badge === "مباشر"
+                              ? "bg-rose-100 text-rose-600 animate-pulse"
+                              : item.badge === "دفع"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-blue-100 text-blue-600"
                         }`}
                       >
                         {item.badge}
@@ -146,7 +155,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
           {/* الجزء السفلي: حالة النظام وزر الخروج */}
           <div className="pt-4 mt-auto border-t border-slate-100 space-y-3">
-            
             {/* بطاقة الحالة */}
             <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
@@ -155,7 +163,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
                 <div>
-                  <span className="text-xs font-semibold text-slate-700 block">النظام يعمل بكفاءة</span>
+                  <span className="text-xs font-semibold text-slate-700 block">
+                    النظام يعمل بكفاءة
+                  </span>
                 </div>
               </div>
               <ShieldCheck size={16} className="text-blue-600" />
@@ -166,11 +176,13 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               onClick={handleLogout}
               className="group flex w-full items-center justify-center gap-2.5 p-3 text-rose-600 hover:text-white hover:bg-rose-600 rounded-2xl border border-rose-100 hover:border-rose-600 transition-all font-semibold text-sm shadow-sm"
             >
-              <LogOut size={18} className="transition-transform duration-300 group-hover:-translate-x-1" />
+              <LogOut
+                size={18}
+                className="transition-transform duration-300 group-hover:-translate-x-1"
+              />
               <span>تسجيل الخروج</span>
             </button>
           </div>
-
         </div>
       </aside>
     </>

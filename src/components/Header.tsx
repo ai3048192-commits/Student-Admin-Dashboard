@@ -1,27 +1,82 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, GraduationCap, Bell, Search, BookOpen, X, Award, User } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 interface HeaderProps {
   onOpenSidebar: () => void;
+  userId: string; // ✅ استقبل userId من props
 }
 
-export default function Header({ onOpenSidebar }: HeaderProps) {
+export default function Header({ onOpenSidebar, userId }: HeaderProps) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // قائمة العناصر والمسارات الحقيقية الموجودة في التطبيق
+  const [userName, setUserName] = useState('جاري التحميل...');
+  const [userRole, setUserRole] = useState('طالب');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+
+  // ✅ استخدم userId من props بدل studentId ثابت
+  useEffect(() => {
+    if (!userId) return; // تأكد إن userId موجود
+
+    async function fetchHeaderData() {
+      try {
+        // ✅ استخدم userId بدل studentId = 1
+        const { data, error } = await supabase
+          .from("students_profile")
+          .select("name, role, profile_image_url")
+          .eq("user_id", userId) // ✅ حديد الطالب الحالي
+          .maybeSingle();
+
+        if (data && !error) {
+          setUserName(data.name || "مستخدم ZED");
+          setUserRole(data.role || "طالب");
+          if (data.profile_image_url) {
+            setUserAvatar(data.profile_image_url);
+          }
+        }
+      } catch (err) {
+        console.error("خطأ في جلب بيانات الهيدر:", err);
+      }
+    }
+
+    fetchHeaderData();
+
+    // ✅ الاستماع للتحديثات الفورية لـ هذا الطالب فقط
+    const channel = supabase
+      .channel(`public:students_profile_header_${userId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'students_profile', 
+          filter: `user_id=eq.${userId}` // ✅ حديد الطالب الحالي
+        },
+        (payload) => {
+          if (payload.new) {
+            setUserName(payload.new.name);
+            setUserRole(payload.new.role);
+            setUserAvatar(payload.new.profile_image_url);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]); // ✅ أعد الاستدعاء عند تغيير userId
+
   const searchResults = [
     { id: 1, title: 'صفحة الكورسات والدبلومات', type: 'صفحة', path: '/courses', icon: <BookOpen size={14} /> },
     { id: 2, title: 'الملف الشخصي وإعدادات الحساب', type: 'صفحة', path: '/profile', icon: <User size={14} /> },
     { id: 3, title: 'الشهادات المعتمدة', type: 'صفحة', path: '/certificates', icon: <Award size={14} /> },
-    { id: 4, title: 'دبلوم تطوير الويب المتقدم Full-Stack', type: 'كورس', path: '/courses/full-stack', icon: <BookOpen size={14} /> },
-    { id: 5, title: 'دبلوم تصميم واجهات وتجربة المستخدم UI/UX', type: 'كورس', path: '/courses/ui-ux', icon: <BookOpen size={14} /> },
   ];
 
-  // تصفية النتائج بناءً على الكتابة
   const filteredResults = searchQuery.trim() === '' 
     ? [] 
     : searchResults.filter(item => 
@@ -29,7 +84,6 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
         item.type.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
-  // إغلاق نافذة البحث عند النقر خارجها
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -40,9 +94,8 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // وظيفة الانتقال الفعلي عند الضغط على النتيجة
   const handleSelectResult = (path: string) => {
-    navigate(path); // التوجيه الفعلي للصفحة الحقيقية
+    navigate(path);
     setIsSearchOpen(false);
     setSearchQuery('');
   };
@@ -50,7 +103,6 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
   return (
     <header className="bg-white/90 backdrop-blur-xl px-4 sm:px-8 py-3.5 flex items-center justify-between sticky top-0 z-30 border-b border-slate-200 transition-all shadow-xs w-full" dir="rtl">
       
-      {/* 1. الجانب الأيمن: زر القائمة، الشعار، وشريط البحث التفاعلي */}
       <div className="flex items-center gap-4 flex-1 max-w-xl relative" ref={searchRef}>
         <button 
           onClick={onOpenSidebar} 
@@ -60,15 +112,13 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
           <Menu size={20} />
         </button>
 
-        {/* الشعار للموبايل */}
         <div className="flex items-center gap-2 lg:hidden shrink-0">
           <div className="p-2 bg-blue-600 rounded-xl text-white shadow-sm shadow-blue-600/30">
             <GraduationCap size={18} />
           </div>
-          <span className="text-base font-black text-slate-900 tracking-wider">zed</span>
+          <span className="text-base font-black text-slate-900 tracking-wider">منصة Z E D</span>
         </div>
 
-        {/* شريط البحث الحقيقي */}
         <div className="hidden md:flex items-center gap-2.5 px-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl w-full max-w-md hover:border-blue-400 focus-within:border-blue-600 focus-within:bg-white transition-all shadow-2xs relative">
           <Search size={16} className="text-slate-400 shrink-0" />
           <input 
@@ -91,11 +141,10 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
             </button>
           )}
 
-          {/* نافذة النتائج المنسدلة المرتبطة بمسارات حقيقية */}
           {isSearchOpen && searchQuery.trim() !== '' && (
             <div className="absolute top-full right-0 left-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 max-h-72 overflow-y-auto">
               <div className="p-2.5 bg-slate-50 border-b border-slate-100 text-[11px] font-bold text-slate-500">
-                نتائج البحث الفعلي عن: "{searchQuery}"
+                نتائج البحث عن: "{searchQuery}"
               </div>
               {filteredResults.length > 0 ? (
                 <div className="divide-y divide-slate-100">
@@ -122,7 +171,7 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
                 </div>
               ) : (
                 <div className="p-4 text-center text-xs text-slate-500 font-semibold">
-                  عذراً، لم نجد أي تطابق حقيقي لبحثك.
+                  عذراً، لم نجد أي تطابق لبحثك.
                 </div>
               )}
             </div>
@@ -130,10 +179,7 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
         </div>
       </div>
 
-      {/* 2. الجانب الأيسر: الإشعارات ومعلومات الطالب */}
       <div className="flex items-center gap-3 shrink-0">
-        
-        {/* زر الإشعارات */}
         <button 
           aria-label="الإشعارات"
           onClick={() => navigate('/notifications')}
@@ -143,26 +189,31 @@ export default function Header({ onOpenSidebar }: HeaderProps) {
           <span className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full ring-2 ring-white" />
         </button>
 
-        {/* فاصل */}
         <div className="h-7 w-[1px] bg-slate-200 hidden sm:block" />
 
-        {/* معلومات الطالب (تنقل لصفحة البروفايل عند النقر) */}
         <div 
           onClick={() => navigate('/profile')}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="relative w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-[2px] shadow-md shadow-blue-600/20 flex items-center justify-center text-white font-bold shrink-0 group-hover:scale-105 transition-all">
-            <span className="text-sm">أ</span>
+          <div className="relative w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-[2px] shadow-md shadow-blue-600/20 flex items-center justify-center text-white font-bold shrink-0 group-hover:scale-105 overflow-hidden transition-all">
+            {userAvatar ? (
+              <img src={userAvatar} alt="Profile" className="w-full h-full object-cover rounded-[14px]" />
+            ) : (
+              <span className="text-sm">
+                {userName && userName !== 'جاري التحميل...' ? userName.charAt(0) : 'U'}
+              </span>
+            )}
           </div>
 
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-slate-900 tracking-wide group-hover:text-blue-600 transition-all">أحمد محمد</p>
-            <p className="text-[10px] text-blue-600 font-semibold tracking-wider uppercase">
-              Student Account
+            <p className="text-sm font-bold text-slate-900 tracking-wide group-hover:text-blue-600 transition-all">
+              {userName}
+            </p>
+            <p className="text-[10px] text-blue-600 font-semibold tracking-wider uppercase truncate max-w-[120px]">
+              {userRole}
             </p>
           </div>
         </div>
-
       </div>
     </header>
   );
